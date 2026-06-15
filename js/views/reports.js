@@ -300,8 +300,8 @@ function updateAnalyticsChart() {
                              if (totalVal === 0) return;
                              const percent = ((dataVal / totalVal) * 100).toFixed(1);
                              
-                             // Only show if the slice is large enough (> 1%)
-                             if (parseFloat(percent) < 1.0) return;
+                             // Only show if the slice is large enough (> 5%) to prevent overlap
+                             if (parseFloat(percent) < 5.0) return;
 
                              // Get animating properties safely
                              const props = element.getProps(['x', 'y', 'startAngle', 'endAngle', 'innerRadius', 'outerRadius'], true);

@@ -2,24 +2,28 @@
 // FINFLOW - SERVICE WORKER FOR OFFLINE CACHING
 // ============================================================================
 
-const CACHE_NAME = 'finflow-cache-v78';
+const CACHE_NAME = 'finflow-cache-v80';
 const ASSETS = [
     './',
     './index.html',
     './styles.css',
-    './app.js',
+    './styles/views/home.css',
+    './styles/views/add.css',
+    './styles/views/reports.css',
+    './js/core.js',
+    './js/views/home.js',
+    './js/views/add.js',
+    './js/views/reports.js',
+    './js/main.js',
     './db.js',
-    './chart.js',
     './manifest.json',
-    './icons/icon-192.png',
-    './icons/icon-512.png',
-    './images/cute_orange_cat.png',
-    './images/cute_cat_peaking.png',
-    './images/cute_cat_income.png',
-    './images/cute_cat_expense.png',
-    './images/cute_cat_reports.png',
-    './images/cute_cat_coin.png',
-    './images/cute_kitty_orange.png'
+    './images/rich_cat.png',
+    './images/poor_cat.png',
+    './images/hug_cat.png',
+    './images/smart_cat.png',
+    './images/account_cat.png',
+    './images/face_cat.png',
+    './images/icon_cat.png'
 ];
 
 // Install Event - cache core shell assets

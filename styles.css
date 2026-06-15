@@ -11,6 +11,7 @@
    ========================================== */
 
 :root {
+    color-scheme: dark;
     /* Fonts */
     --font-heading: 'Outfit', sans-serif;
     --font-body: 'Sarabun', sans-serif;
@@ -50,6 +51,7 @@
 }
 
 :root[data-theme="light"] {
+    color-scheme: light;
     --bg-base: #ffffff;
     --bg-card: rgba(255, 255, 255, 0.8);
     --bg-card-solid: #f8f9fa;

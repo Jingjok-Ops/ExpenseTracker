@@ -570,11 +570,11 @@ body {
 
     .chart-wrapper {
         padding: 1rem !important;
-        min-height: 290px !important;
+        min-height: 310px !important;
     }
 
     .canvas-container {
-        height: 250px !important;
+        height: 270px !important;
     }
 
     .app-nav {
@@ -1298,12 +1298,12 @@ body {
 
     /* Donut chart sizing */
     .chart-wrapper {
-        min-height: 275px !important;
+        min-height: 295px !important;
         padding: 0.5rem !important;
     }
 
     .canvas-container {
-        height: 245px !important;
+        height: 265px !important;
         max-width: 280px !important;
     }
 

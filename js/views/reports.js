@@ -254,10 +254,10 @@ function updateAnalyticsChart() {
              maintainAspectRatio: false,
              layout: {
                  padding: {
-                     left: window.innerWidth <= 600 ? 35 : 45,
-                     right: window.innerWidth <= 600 ? 35 : 45,
-                     top: window.innerWidth <= 600 ? 35 : 45,
-                     bottom: window.innerWidth <= 600 ? 35 : 45
+                     left: window.innerWidth <= 600 ? 40 : 45,
+                     right: window.innerWidth <= 600 ? 40 : 45,
+                     top: window.innerWidth <= 600 ? 55 : 65,
+                     bottom: window.innerWidth <= 600 ? 40 : 45
                  }
              },
              plugins: {
@@ -292,16 +292,18 @@ function updateAnalyticsChart() {
                  try {
                      const { ctx } = chart;
                      ctx.save();
+                     
+                     // Track drawn label coordinates to prevent overlapping
+                     const drawnLabels = [];
+                     
                      chart.data.datasets.forEach((dataset, i) => {
                          const meta = chart.getDatasetMeta(i);
                          meta.data.forEach((element, index) => {
                              const dataVal = dataset.data[index];
                              const totalVal = dataset.data.reduce((a, b) => a + b, 0);
                              if (totalVal === 0) return;
-                             const percent = ((dataVal / totalVal) * 100).toFixed(1);
-                             
-                             // Only show if the slice is large enough (> 5%) to prevent overlap
-                             if (parseFloat(percent) < 5.0) return;
+                             const percentFloat = parseFloat(((dataVal / totalVal) * 100).toFixed(1));
+                             if (percentFloat === 0) return;
 
                              // Get animating properties safely
                              const props = element.getProps(['x', 'y', 'startAngle', 'endAngle', 'innerRadius', 'outerRadius'], true);
@@ -313,10 +315,44 @@ function updateAnalyticsChart() {
 
                              const halfAngle = startAngle + (endAngle - startAngle) / 2;
                              
-                             // Offset label 15px outside the outer radius
-                             const labelRadius = outerRadius + 15;
-                             const posX = x + Math.cos(halfAngle) * labelRadius;
-                             const posY = y + Math.sin(halfAngle) * labelRadius;
+                             // Offset label 15px outside the outer radius initially
+                             let labelRadius = outerRadius + 15;
+                             let posX = x + Math.cos(halfAngle) * labelRadius;
+                             let posY = y + Math.sin(halfAngle) * labelRadius;
+
+                             // Anti-collision logic for small slices
+                             let collision = true;
+                             let attempts = 0;
+                             while (collision && attempts < 6) {
+                                 collision = false;
+                                 for (const prev of drawnLabels) {
+                                     const distY = Math.abs(posY - prev.y);
+                                     const distX = Math.abs(posX - prev.x);
+                                     // If labels are too close, increase the radius
+                                     if (distY < 14 && distX < 30) {
+                                         collision = true;
+                                         break;
+                                     }
+                                 }
+                                 if (collision) {
+                                     labelRadius += 12; // push further out
+                                     posX = x + Math.cos(halfAngle) * labelRadius;
+                                     posY = y + Math.sin(halfAngle) * labelRadius;
+                                     attempts++;
+                                 }
+                             }
+                             
+                             drawnLabels.push({ x: posX, y: posY });
+
+                             // Draw connecting line if the label was pushed out
+                             if (labelRadius > outerRadius + 16) {
+                                 ctx.beginPath();
+                                 ctx.moveTo(x + Math.cos(halfAngle) * (outerRadius + 2), y + Math.sin(halfAngle) * (outerRadius + 2));
+                                 ctx.lineTo(x + Math.cos(halfAngle) * (labelRadius - 10), y + Math.sin(halfAngle) * (labelRadius - 10));
+                                 ctx.strokeStyle = state.theme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
+                                 ctx.lineWidth = 1;
+                                 ctx.stroke();
+                             }
 
                              ctx.fillStyle = state.theme === 'dark' ? '#e2e8f0' : (state.theme === 'cat' ? '#5d4037' : '#2d3748');
                              ctx.font = '600 10px Sarabun, Outfit, sans-serif';
@@ -346,7 +382,7 @@ function updateAnalyticsChart() {
                              ctx.shadowOffsetX = 0;
                              ctx.shadowOffsetY = 0;
                              
-                             ctx.fillText(`${percent}%`, posX, posY);
+                             ctx.fillText(`${percentFloat}%`, posX, posY);
                          });
                      });
                      ctx.restore();

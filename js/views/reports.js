@@ -82,7 +82,7 @@ function getDateRangeForTimeframe(timeframe) {
     return { start, end, label };
 }
 
-function updateAnalyticsChart() {
+function updateAnalyticsChart(skipComparisonUpdate = false) {
     const oldCanvas = document.getElementById('donut-chart');
     if (!oldCanvas) return;
 
@@ -412,7 +412,9 @@ function updateAnalyticsChart() {
     });
 
     // Update Period Comparison Chart & Cards
-    updateComparisonChart();
+    if (!skipComparisonUpdate) {
+        updateComparisonChart();
+    }
 }
 
 function updateComparisonChart() {
@@ -640,7 +642,8 @@ function updateComparisonChart() {
         };
     });
 
-    let hideTooltipIndex = null;
+    let activeBarIndex = null;
+    let forceHideTooltip = false;
     let lastHoverIndex = null;
 
     const ctx = compCanvas.getContext('2d');
@@ -651,46 +654,61 @@ function updateComparisonChart() {
             datasets: datasets
         },
         options: {
+            events: ['click', 'touchstart', 'mousemove'],
             responsive: true,
             maintainAspectRatio: false,
             interaction: {
                 mode: 'index',
                 intersect: false
             },
-            onHover: function(e, elements, chart) {
+            onHover: function (e, elements, chart) {
                 if (elements.length > 0) {
                     const currentIdx = elements[0].index;
                     if (lastHoverIndex !== currentIdx) {
-                        hideTooltipIndex = null;
+                        forceHideTooltip = false;
                         lastHoverIndex = currentIdx;
                     }
+                } else {
+                    lastHoverIndex = null;
                 }
             },
-            onClick: function(e, elements, chart) {
+            onClick: function (e, elements, chart) {
                 if (elements.length > 0) {
                     const currentIdx = elements[0].index;
-                    if (hideTooltipIndex === currentIdx) {
-                        hideTooltipIndex = null;
-                        // Clicked again to untoggle -> clear override date
+                    if (activeBarIndex === currentIdx && analyticsState.overrideDateRange) {
+                        // Clicked again to untoggle -> clear override date & hide tooltip
+                        activeBarIndex = null;
+                        forceHideTooltip = true;
                         analyticsState.overrideDateRange = null;
-                        updateAnalyticsChart();
+                        updateAnalyticsChart(false);
+                        chart.setActiveElements([]);
+                        if (chart.tooltip) {
+                            chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+                        }
+                        chart.update();
                     } else {
-                        hideTooltipIndex = currentIdx;
                         // Clicked a new bar -> set override date and update donut
+                        activeBarIndex = currentIdx;
+                        forceHideTooltip = false;
                         const selectedInterval = intervals[currentIdx];
                         analyticsState.overrideDateRange = {
                             start: selectedInterval.start,
                             end: selectedInterval.end,
                             label: selectedInterval.label
                         };
-                        updateAnalyticsChart();
+                        updateAnalyticsChart(true);
                     }
                 } else {
-                    hideTooltipIndex = null;
+                    activeBarIndex = null;
+                    forceHideTooltip = false;
                     analyticsState.overrideDateRange = null;
-                    updateAnalyticsChart();
+                    updateAnalyticsChart(false);
+                    chart.setActiveElements([]);
+                    if (chart.tooltip) {
+                        chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+                    }
+                    chart.update();
                 }
-                chart.update();
             },
             layout: {
                 padding: {
@@ -707,8 +725,8 @@ function updateComparisonChart() {
                 averageLine: {
                     value: average
                 },
-                    tooltip: {
-                    filter: function(tooltipItem) {
+                tooltip: {
+                    filter: function (tooltipItem) {
                         return tooltipItem.raw > 0;
                     },
                     padding: 10,
@@ -721,9 +739,18 @@ function updateComparisonChart() {
                     callbacks: {
                         label: function (context) {
                             const val = context.raw || 0;
-                            return ` ${context.dataset.label}: ฿ ${new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(val)}`;
+                            const dataIndex = context.dataIndex;
+                            let pctStr = '';
+                            if (intervals && intervals[dataIndex]) {
+                                const total = intervals[dataIndex].total;
+                                if (total > 0) {
+                                    const pct = ((val / total) * 100).toFixed(1);
+                                    pctStr = ` (${pct}%)`;
+                                }
+                            }
+                            return ` ${context.dataset.label}: ฿ ${new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2 }).format(val)}${pctStr}`;
                         },
-                        footer: function(tooltipItems) {
+                        footer: function (tooltipItems) {
                             const dataIndex = tooltipItems[0].dataIndex;
                             if (intervals && intervals[dataIndex]) {
                                 const total = intervals[dataIndex].total;
@@ -788,10 +815,8 @@ function updateComparisonChart() {
         plugins: [{
             id: 'averageLine',
             beforeTooltipDraw(chart) {
-                if (chart.tooltip && chart.tooltip.dataPoints && chart.tooltip.dataPoints.length > 0) {
-                    if (chart.tooltip.dataPoints[0].dataIndex === hideTooltipIndex) {
-                        return false; // Cancel tooltip drawing
-                    }
+                if (forceHideTooltip) {
+                    return false; // Cancel tooltip drawing
                 }
             },
             afterDatasetsDraw(chart) {
@@ -826,6 +851,17 @@ function updateComparisonChart() {
                 ctx.restore();
             }
         }]
+    });
+
+    // Custom desktop mouseout listener to clear tooltip when not actively selected
+    compCanvas.addEventListener('mouseout', () => {
+        if (activeBarIndex === null && analyticsState.comparisonChartInstance) {
+            analyticsState.comparisonChartInstance.setActiveElements([]);
+            if (analyticsState.comparisonChartInstance.tooltip) {
+                analyticsState.comparisonChartInstance.tooltip.setActiveElements([], { x: 0, y: 0 });
+            }
+            analyticsState.comparisonChartInstance.update();
+        }
     });
 
     // 8. Programmatically scroll to the far right (most recent data)
